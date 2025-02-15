@@ -2,6 +2,8 @@ from plugins import Plugin
 import base64
 import base58
 import base45
+from PySide6.QtWidgets import QWidget, QLabel, QComboBox, QHBoxLayout
+from style import FONTS
 
 
 class Base16EncodePlugin(Plugin):

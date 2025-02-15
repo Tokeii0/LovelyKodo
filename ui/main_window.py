@@ -69,56 +69,12 @@ class MainWindow(QMainWindow):
         content_layout.addWidget(plugin_group)
 
         # 右侧区域
-        right_widget = QWidget()
-        self.right_layout = QVBoxLayout(right_widget)
+        self.right_widget = QWidget()
+        self.right_layout = QVBoxLayout(self.right_widget)
         self.right_layout.setContentsMargins(0, 0, 0, 0)
         self.right_layout.setSpacing(style.DIMENS['spacing'])
+        content_layout.addWidget(self.right_widget)
 
-        # 插件参数区域
-        self.param_group = QGroupBox("插件参数")
-        self.param_group.setStyleSheet(style.get_group_box_style())
-        self.param_group.setObjectName("param_group")
-        self.param_layout = QVBoxLayout(self.param_group)
-        self.param_layout.setContentsMargins(10, 20, 10, 10)
-        self.right_layout.addWidget(self.param_group)
-        self.param_group.hide()  # 默认隐藏参数区域
-
-        # 输入区域
-        input_group = QGroupBox("输入")
-        input_group.setObjectName("input_group")
-        input_group.setStyleSheet(style.get_group_box_style())
-        input_layout = QVBoxLayout(input_group)
-        
-        self.input_edit = QTextEdit()
-        self.input_edit.setObjectName("input_edit")
-        self.input_edit.setPlaceholderText("在这里输入要处理的文本...")
-        self.input_edit.textChanged.connect(self.on_input_changed)
-        self.input_edit.setStyleSheet(style.get_text_edit_style())
-        input_layout.addWidget(self.input_edit)
-        self.right_layout.addWidget(input_group)
-
-        # 运行按钮
-        self.run_btn = QPushButton("编码/解码/加密/解密")
-        self.run_btn.setStyleSheet(style.get_run_button_style())
-        self.run_btn.clicked.connect(self.run_plugin)
-        self.run_btn.setObjectName("run_btn")
-        self.right_layout.addWidget(self.run_btn)
-
-        # 输出区域
-        output_group = QGroupBox("处理结果")
-        output_group.setStyleSheet(style.get_group_box_style())
-        output_group.setObjectName("output_group")
-        output_layout = QVBoxLayout(output_group)
-        output_layout.setContentsMargins(10, 20, 10, 10)
-        
-        self.output_edit = QTextEdit()
-        self.output_edit.setPlaceholderText("处理结果将显示在这里...")
-        self.output_edit.setStyleSheet(style.get_text_edit_style())
-        self.output_edit.setObjectName("output_edit")
-        output_layout.addWidget(self.output_edit)
-        self.right_layout.addWidget(output_group)
-
-        content_layout.addWidget(right_widget)
         content_layout.setStretch(0, 1)  # 左侧占比
         content_layout.setStretch(1, 3)  # 右侧占比
 
@@ -127,7 +83,8 @@ class MainWindow(QMainWindow):
         
         # 当前选中的插件
         self.current_plugin = None
-        self.custom_widgets = []
+        # 保存当前输入文本
+        self.current_input_text = ""
         
         # 加载插件
         self.load_plugins()
@@ -212,75 +169,65 @@ class MainWindow(QMainWindow):
         if not plugin:  # 如果是分类节点，直接返回
             return
             
+        # 如果当前有插件，保存其输入文本
+        if self.current_plugin and hasattr(self.current_plugin, 'input_edit'):
+            self.current_input_text = self.current_plugin.input_edit.toPlainText()
+            
         self.current_plugin = plugin
+        
         # 更新窗口标题
         self.title_bar.set_title(f"LovelyKodo - {plugin.name}")
         
-        # 不清除输入文本
-        # self.input_edit.clear()
-        self.output_edit.clear()
+        # 清理右侧区域
+        for i in reversed(range(self.right_layout.count())): 
+            widget = self.right_layout.itemAt(i).widget()
+            if widget:
+                widget.setParent(None)
         
-        # 清理旧的自定义控件
-        for widget_info in self.custom_widgets:
-            if 'widget' in widget_info:
-                widget_info['widget'].setParent(None)
-        self.custom_widgets.clear()
+        # 让插件创建UI
+        plugin.create_ui(self.right_widget, self.right_layout)
         
-        # 创建新的自定义控件
-        self.custom_widgets = plugin.create_custom_ui(self)
+        # 恢复输入文本
+        if hasattr(plugin, 'input_edit'):
+            plugin.input_edit.setText(self.current_input_text)
         
-        # 如果有自定义控件，显示参数区域
-        if self.custom_widgets:
-            for widget_info in self.custom_widgets:
-                if 'widget' in widget_info:
-                    self.param_layout.insertWidget(
-                        self.param_layout.count() - 1,
-                        widget_info['widget']
-                    )
-            self.param_group.show()
-        else:
-            self.param_group.hide()
-            
-        # 自动执行插件
-        self.run_plugin()
-                
+        # 绑定运行按钮事件（如果插件使用默认UI）
+        if hasattr(plugin, 'run_btn'):
+            plugin.run_btn.clicked.connect(self.run_plugin)
+
     def run_plugin(self):
         """执行当前选中的插件"""
         if not self.current_plugin:
-            self.output_edit.setText("请先选择一个插件")
             return
             
-        # 获取输入数据
-        input_data = self.input_edit.toPlainText()
-        if not input_data.strip():  # 如果输入为空，直接返回
-            return
+        # 获取输入文本（如果插件使用默认UI）
+        input_data = ""
+        if hasattr(self.current_plugin, 'input_edit'):
+            input_data = self.current_plugin.input_edit.toPlainText()
             
-        # 收集自定义控件的值
+        # 获取自定义参数
         kwargs = {}
-        for widget_info in self.custom_widgets:
-            if 'key' in widget_info and 'widget' in widget_info:
-                widget = widget_info['widget']
-                if hasattr(widget, 'text'):
-                    kwargs[widget_info['key']] = widget.text()
-                elif hasattr(widget, 'currentText'):
-                    kwargs[widget_info['key']] = widget.currentText()
-                elif hasattr(widget, 'value'):
-                    kwargs[widget_info['key']] = widget.value()
-        
+        if hasattr(self.current_plugin, 'custom_widgets'):
+            for widget_info in self.current_plugin.custom_widgets:
+                if 'key' in widget_info and 'widget' in widget_info:
+                    widget = widget_info['widget']
+                    if hasattr(widget, 'text'):
+                        kwargs[widget_info['key']] = widget.text()
+                    elif hasattr(widget, 'currentText'):
+                        kwargs[widget_info['key']] = widget.currentText()
+                        
+        # 验证输入
+        valid, error = self.current_plugin.validate_input(**kwargs)
+        if not valid:
+            if hasattr(self.current_plugin, 'output_edit'):
+                self.current_plugin.output_edit.setText(error)
+            return
+            
+        # 执行插件
         try:
-            # 验证输入
-            is_valid, error_msg = self.current_plugin.validate_input(**kwargs)
-            if not is_valid:
-                self.output_edit.setText(f"输入验证失败: {error_msg}")
-                return
-                
-            # 执行插件
             result = self.current_plugin.process(input_data, **kwargs)
-            self.output_edit.setText(result)
+            if hasattr(self.current_plugin, 'output_edit'):
+                self.current_plugin.output_edit.setText(result)
         except Exception as e:
-            self.output_edit.setText(f"执行失败: {str(e)}")
-
-    def on_input_changed(self):
-        """处理输入文本变化事件"""
-        if self.current_plugin:
-            self.run_plugin()
+            if hasattr(self.current_plugin, 'output_edit'):
+                self.current_plugin.output_edit.setText(f"错误：{str(e)}")
