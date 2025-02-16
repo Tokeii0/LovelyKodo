@@ -1,5 +1,11 @@
-from PySide6.QtWidgets import QLineEdit, QSpinBox, QWidget, QComboBox
+# -*- coding: utf-8 -*-
+"""
+@ Author: b3nguang
+@ Date: 2025-02-16 23:08:33
+"""
+
 import bcrypt
+from PySide6.QtWidgets import QComboBox, QLineEdit, QSpinBox, QWidget
 
 import style
 
@@ -12,7 +18,7 @@ class BcryptPlugin(Plugin):
 
     @property
     def name(self) -> str:
-        return "Bcrypt加密/验证"
+        return "Bcrypt加密/解密"
 
     @property
     def category(self) -> str:
@@ -76,7 +82,7 @@ class BcryptPlugin(Plugin):
                 if version not in self.VERSIONS:
                     return "不支持的Bcrypt版本"
 
-                prefix = f"2{version[1]}".encode('utf-8')  # 只使用2a或2b作为前缀
+                prefix = f"2{version[1]}".encode("utf-8")  # 只使用2a或2b作为前缀
                 salt = bcrypt.gensalt(rounds=rounds, prefix=prefix)
                 hashed = bcrypt.hashpw(text.encode("utf-8"), salt)
                 return hashed.decode("utf-8")
