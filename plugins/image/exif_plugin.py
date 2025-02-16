@@ -206,15 +206,39 @@ class EXIFPlugin(Plugin):
     
     def update_image_preview(self, file_path: str):
         """更新图片预览"""
-        pixmap = QPixmap(file_path)
-        if not pixmap.isNull():
-            # 调整图片大小以适应预览区域，保持宽高比
-            scaled_pixmap = pixmap.scaled(
-                self.image_label.size(),
-                Qt.AspectRatioMode.KeepAspectRatio,
-                Qt.TransformationMode.SmoothTransformation
-            )
-            self.image_label.setPixmap(scaled_pixmap)
+        try:
+            # 使用PIL先读取图片
+            with Image.open(file_path) as img:
+                # 转换为RGB模式，避免ICC配置文件问题
+                if img.mode in ['RGBA', 'P']:
+                    img = img.convert('RGB')
+                # 保存为临时的RGB图片
+                img.save('temp_preview.jpg', 'JPEG', quality=95)
+                # 使用临时文件创建QPixmap
+                pixmap = QPixmap('temp_preview.jpg')
+                
+                if not pixmap.isNull():
+                    # 调整图片大小以适应预览区域，保持宽高比
+                    scaled_pixmap = pixmap.scaled(
+                        self.image_label.size(),
+                        Qt.AspectRatioMode.KeepAspectRatio,
+                        Qt.TransformationMode.SmoothTransformation
+                    )
+                    self.image_label.setPixmap(scaled_pixmap)
+                    
+                # 删除临时文件
+                if os.path.exists('temp_preview.jpg'):
+                    os.remove('temp_preview.jpg')
+                    
+        except Exception as e:
+            self.image_label.setText(f"预览失败：{str(e)}")
+            
+    def resizeEvent(self, event):
+        """处理窗口大小改变事件"""
+        super().resizeEvent(event)
+        # 如果有当前文件，重新调整图片大小
+        if self.current_file and os.path.exists(self.current_file):
+            self.update_image_preview(self.current_file)
     
     def process(self, text: str) -> str:
         """处理输入文本 - 这个插件不处理文本"""

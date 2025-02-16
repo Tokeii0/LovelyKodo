@@ -169,9 +169,12 @@ class MainWindow(QMainWindow):
         if not plugin:  # 如果是分类节点，直接返回
             return
             
-        # 如果当前有插件，保存其输入文本
-        if self.current_plugin and hasattr(self.current_plugin, 'input_edit'):
-            self.current_input_text = self.current_plugin.input_edit.toPlainText()
+        # 如果当前有插件，保存其输入文本并清理
+        if self.current_plugin:
+            if hasattr(self.current_plugin, 'input_edit'):
+                self.current_input_text = self.current_plugin.input_edit.toPlainText()
+            if hasattr(self.current_plugin, 'cleanup'):
+                self.current_plugin.cleanup()
             
         self.current_plugin = plugin
         
@@ -183,6 +186,7 @@ class MainWindow(QMainWindow):
             widget = self.right_layout.itemAt(i).widget()
             if widget:
                 widget.setParent(None)
+                widget.deleteLater()
         
         # 让插件创建UI
         plugin.create_ui(self.right_widget, self.right_layout)
