@@ -24,9 +24,20 @@ class TitleBar(QWidget):
         self.minimize_btn = QPushButton()
         self.maximize_btn = QPushButton()
 
-                # 主题切换按钮
+        # 添加窗口控制按钮
+        for btn, tip in [
+            (self.close_btn, "关闭"),
+            (self.minimize_btn, "最小化"),
+            (self.maximize_btn, "最大化")
+        ]:
+            btn.setFixedSize(12, 12)
+            btn.setToolTip(tip)
+            left_layout.addWidget(btn)
+
+        # 主题切换按钮
         self.theme_btn = QPushButton()
         self.theme_btn.setFixedSize(12, 12)
+        self.theme_btn.setToolTip("切换主题")
         self.theme_btn.setStyleSheet("""
             QPushButton {
                 border: none;
@@ -40,16 +51,6 @@ class TitleBar(QWidget):
         """)
         self.theme_btn.clicked.connect(self.show_theme_dialog)
         left_layout.addWidget(self.theme_btn)
-
-        
-        for btn, tip in [
-            (self.close_btn, "关闭"),
-            (self.minimize_btn, "最小化"),
-            (self.maximize_btn, "最大化")
-        ]:
-            btn.setFixedSize(12, 12)
-            btn.setToolTip(tip)
-            left_layout.addWidget(btn)
 
         # 设置窗口控制按钮样式
         self.close_btn.setStyleSheet(style.get_window_button_style(style.COLORS['color_close']))

@@ -52,6 +52,7 @@ class ThemeManager:
         if cls._instance is None:
             cls._instance = super(ThemeManager, cls).__new__(cls)
             cls._instance._load_themes()
+            cls._instance._load_saved_theme()
         return cls._instance
 
     def _load_themes(self):
@@ -82,6 +83,21 @@ class ThemeManager:
                 "color_maximize": "#28c940"
             }}
 
+    def _load_saved_theme(self):
+        """加载保存的主题设置"""
+        config_file = os.path.join(os.path.dirname(__file__), 'config.json')
+        try:
+            if os.path.exists(config_file):
+                with open(config_file, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                    if 'theme' in config and config['theme'] in self._themes:
+                        self._current_theme = config['theme']
+                        # 更新全局颜色定义
+                        global COLORS
+                        COLORS.update(self._themes[config['theme']])
+        except Exception as e:
+            print(f"加载主题设置失败: {str(e)}")
+
     @property
     def current_colors(self) -> Dict[str, str]:
         """获取当前主题的颜色配置"""
@@ -109,11 +125,55 @@ class ThemeManager:
         
         colors = self._themes[theme_name]
         return f"""
-            QWidget {{
+            /* 主预览容器 */
+            QWidget#preview_container {{
                 background: {colors['color_background']};
                 color: {colors['color_text']};
                 border: 1px solid {colors['color_border']};
                 border-radius: {DIMENS['radius']}px;
+                padding: 10px;
+            }}
+            
+            /* 按钮预览 */
+            QPushButton#preview_primary_btn {{
+                background: {colors['color_primary']};
+                color: white;
+                border: none;
+                border-radius: {DIMENS['radius']}px;
+                padding: 5px 10px;
+                font: {FONTS['body']};
+            }}
+            
+            QPushButton#preview_success_btn {{
+                background: {colors['color_success']};
+                color: white;
+                border: none;
+                border-radius: {DIMENS['radius']}px;
+                padding: 5px 10px;
+                font: {FONTS['body']};
+            }}
+            
+            /* 文本框预览 */
+            QTextEdit#preview_text {{
+                background: {colors['color_widget_bg']};
+                color: {colors['color_text']};
+                border: 1px solid {colors['color_border']};
+                border-radius: {DIMENS['radius']}px;
+                padding: 5px;
+                font: {FONTS['mono']};
+                min-height: 30px;
+                max-height: 30px;
+            }}
+            
+            /* 标签预览 */
+            QLabel#preview_label {{
+                color: {colors['color_text']};
+                font: {FONTS['body']};
+            }}
+            
+            QLabel#preview_secondary_label {{
+                color: {colors['color_text_secondary']};
+                font: {FONTS['small']};
             }}
         """
 
@@ -299,32 +359,58 @@ def get_tree_widget_style():
 # 分组框样式
 def get_group_box_style():
     """获取分组框样式"""
-    return """
-        QGroupBox {
-            border: 2px solid #3498db;
-            border-radius: 5px;
+    return f"""
+        QGroupBox {{
+            border: 1px solid {COLORS['color_border']};
+            border-radius: {DIMENS['radius']}px;
             margin-top: 1em;
-            padding-top: 10px;
-        }
-        QGroupBox::title {
+            padding: {DIMENS['padding']}px;
+            font: {FONTS['body']};
+            color: {COLORS['color_text']};
+        }}
+        QGroupBox::title {{
             subcontrol-origin: margin;
-            subcontrol-position: top center;
-            padding: 0 5px;
-            color: #3498db;
-            font-weight: bold;
-            background-color: #f0f0f0;
-        }
+            left: {DIMENS['padding']}px;
+            padding: 0 3px 0 3px;
+            color: {COLORS['color_primary']};
+            font: {FONTS['body']};
+        }}
+        QGroupBox:hover {{
+            border: 1px solid {COLORS['color_primary']};
+        }}
+    """
+
+# 标签样式
+def get_label_style():
+    """获取标签样式"""
+    return f"""
+        QLabel {{
+            color: {COLORS['color_text']};
+            font: {FONTS['body']};
+            border: none;
+        }}
     """
 
 # 全局样式
 def dynamic_styles():
+    """获取全局样式"""
     return f"""
-        QMainWindow {{
-            background: {COLORS['color_background']};
-        }}
-        
         QWidget {{
             color: {COLORS['color_text']};
+        }}
+        
+        QLabel {{
+            color: {COLORS['color_text']};
+            font: {FONTS['body']};
+            border: none;
+        }}
+        
+        QLabel[secondary="true"] {{
+            color: {COLORS['color_text_secondary']};
+            font: {FONTS['small']};
+        }}
+        
+        QMainWindow {{
             background: {COLORS['color_background']};
         }}
         

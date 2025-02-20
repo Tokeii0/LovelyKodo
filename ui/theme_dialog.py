@@ -1,13 +1,15 @@
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
-                               QPushButton, QListWidget, QListWidgetItem, QWidget, QTreeWidget, QTextEdit, QGroupBox)
+                               QPushButton, QListWidget, QListWidgetItem, QWidget, QTreeWidget, QTextEdit, QGroupBox, QMessageBox)
 from PySide6.QtCore import Qt
 import style
+import os
+import json
 
 class ThemeDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("主题选择")
-        self.setFixedSize(400, 300)
+        self.setFixedSize(400, 350)
         self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.MSWindowsFixedSizeDialogHint)
 
         layout = QVBoxLayout(self)
@@ -30,7 +32,40 @@ class ThemeDialog(QDialog):
         layout.addWidget(preview_label)
         
         self.preview = QWidget()
-        self.preview.setFixedHeight(100)
+        self.preview.setObjectName("preview_container")
+        self.preview.setFixedHeight(150)
+        
+        preview_layout = QVBoxLayout(self.preview)
+        preview_layout.setSpacing(8)
+        
+        # 添加预览元素
+        label = QLabel("标准文本")
+        label.setObjectName("preview_label")
+        preview_layout.addWidget(label)
+        
+        secondary_label = QLabel("次要文本")
+        secondary_label.setObjectName("preview_secondary_label")
+        preview_layout.addWidget(secondary_label)
+        
+        text_edit = QTextEdit()
+        text_edit.setObjectName("preview_text")
+        text_edit.setPlaceholderText("输入框预览")
+        preview_layout.addWidget(text_edit)
+        
+        btn_container = QWidget()
+        btn_layout = QHBoxLayout(btn_container)
+        btn_layout.setContentsMargins(0, 0, 0, 0)
+        
+        primary_btn = QPushButton("主按钮")
+        primary_btn.setObjectName("preview_primary_btn")
+        btn_layout.addWidget(primary_btn)
+        
+        success_btn = QPushButton("成功按钮")
+        success_btn.setObjectName("preview_success_btn")
+        btn_layout.addWidget(success_btn)
+        
+        preview_layout.addWidget(btn_container)
+        
         self.update_preview()  # 初始化预览
         layout.addWidget(self.preview)
 
@@ -72,45 +107,48 @@ class ThemeDialog(QDialog):
         if current_item:
             theme_name = current_item.text()
             if style.theme_manager.set_theme(theme_name):
-                # 更新主窗口及所有子控件的样式
-                main_window = self.window()
-                if main_window:
-                    # 更新全局样式
-                    main_window.setStyleSheet(style.dynamic_styles())
+                # 保存主题设置
+                self.save_theme_setting(theme_name)
+                
+                # 显示重启提示对话框
+                msg = QMessageBox(self)
+                msg.setWindowTitle("主题切换")
+                msg.setText("主题已更改,需要重启应用后才能完全生效。\n是否立即重启?")
+                msg.setStandardButtons(QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+                msg.setDefaultButton(QMessageBox.StandardButton.Yes)
+                
+                if msg.exec() == QMessageBox.StandardButton.Yes:
+                    # 重启应用
+                    import sys
+                    from PySide6.QtCore import QProcess
                     
-                    # 更新标题栏样式
-                    title_bar = main_window.findChild(QWidget, "title_bar")
-                    if title_bar:
-                        title_bar.theme_btn.setStyleSheet("""
-                            QPushButton {
-                                border: none;
-                                border-radius: 6px;
-                                background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
-                                    stop:0 #007AFF, stop:0.5 #5856D6, stop:1 #FF2D55);
-                            }
-                            QPushButton:hover {
-                                opacity: 0.8;
-                            }
-                        """)
+                    # 启动新实例
+                    program = sys.executable
+                    args = sys.argv
+                    QProcess.startDetached(program, args)
                     
-                    # 更新插件树样式
-                    plugin_tree = main_window.findChild(QTreeWidget)
-                    if plugin_tree:
-                        plugin_tree.setStyleSheet(style.get_tree_widget_style())
-                    
-                    # 更新文本框样式
-                    for text_edit in main_window.findChildren(QTextEdit):
-                        text_edit.setStyleSheet(style.get_text_edit_style())
-                    
-                    # 更新按钮样式
-                    run_btn = main_window.findChild(QPushButton, "run_btn")
-                    if run_btn:
-                        run_btn.setStyleSheet(style.get_run_button_style())
-                    
-                    # 更新分组框样式
-                    for group_box in main_window.findChildren(QGroupBox):
-                        group_box.setStyleSheet(style.get_group_box_style())
-                        
-                self.accept()
-            else:
-                self.reject()
+                    # 退出当前实例
+                    from PySide6.QtWidgets import QApplication
+                    QApplication.quit()
+                else:
+                    self.accept()
+
+    def save_theme_setting(self, theme_name: str):
+        """保存主题设置到配置文件"""
+        config_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config.json')
+        config = {}
+        
+        try:
+            if os.path.exists(config_file):
+                with open(config_file, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+        except Exception:
+            pass
+            
+        config['theme'] = theme_name
+        
+        try:
+            with open(config_file, 'w', encoding='utf-8') as f:
+                json.dump(config, f, ensure_ascii=False, indent=4)
+        except Exception as e:
+            print(f"保存主题设置失败: {str(e)}")
